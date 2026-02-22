@@ -188,26 +188,6 @@ function buildTable() {
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
 
-  // Total row at top
-  const totY25 = ytdCases(allRows, 2025);
-  const totY26 = ytdCases(allRows, 2026);
-  const totDiff = totY26 - totY25;
-  const totTr = document.createElement('tr');
-  totTr.className = 'group-row selected';
-  totTr.style.borderBottom = '2px solid #4ecca3';
-  totTr.innerHTML = `
-    <td style="color:#4ecca3; font-weight:700;">TOTAL</td>
-    <td class="num" style="color:#4ecca3; font-weight:700;">${totY25.toLocaleString()}</td>
-    <td class="num" style="color:#4ecca3; font-weight:700;">${totY26.toLocaleString()}</td>
-    <td class="num ${totDiff >= 0 ? 'pos' : 'neg'}" style="font-weight:700;">${totDiff >= 0 ? '+' : ''}${totDiff.toLocaleString()}</td>
-  `;
-  totTr.addEventListener('click', () => {
-    document.querySelectorAll('.group-row.selected, .cust-row.selected').forEach(r => r.classList.remove('selected'));
-    totTr.classList.add('selected');
-    updateCharts(null, null);
-  });
-  tbody.appendChild(totTr);
-
   sorted.forEach(([groupName, customers]) => {
     const groupRows = Object.values(customers).flat();
     const y25 = ytdCases(groupRows, 2025);
@@ -246,6 +226,26 @@ function buildTable() {
       tbody.appendChild(ctr);
     });
   });
+
+  // Total row at bottom
+  const totY25 = ytdCases(allRows, 2025);
+  const totY26 = ytdCases(allRows, 2026);
+  const totDiff = totY26 - totY25;
+  const totTr = document.createElement('tr');
+  totTr.className = 'group-row selected';
+  totTr.style.borderTop = '2px solid #4ecca3';
+  totTr.innerHTML = `
+    <td style="color:#4ecca3; font-weight:700;">TOTAL</td>
+    <td class="num" style="color:#4ecca3; font-weight:700;">${totY25.toLocaleString()}</td>
+    <td class="num" style="color:#4ecca3; font-weight:700;">${totY26.toLocaleString()}</td>
+    <td class="num ${totDiff >= 0 ? 'pos' : 'neg'}" style="font-weight:700;">${totDiff >= 0 ? '+' : ''}${totDiff.toLocaleString()}</td>
+  `;
+  totTr.addEventListener('click', () => {
+    document.querySelectorAll('.group-row.selected, .cust-row.selected').forEach(r => r.classList.remove('selected'));
+    totTr.classList.add('selected');
+    updateCharts(null, null);
+  });
+  tbody.appendChild(totTr);
 }
 
 function toggleGroup(tr, groupName) {
