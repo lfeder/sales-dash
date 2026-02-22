@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
+  #header { background: #16213e; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #0f3460; }
+  #header h1 { font-size: 1.3rem; color: #4ecca3; }
+  #header .info { font-size: 0.8rem; color: #888; }
+  #loading { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 1.2rem; color: #4ecca3; }
+  #main { display: flex; flex: 1; overflow: hidden; }
+  #left { width: 35%; border-right: 1px solid #0f3460; overflow-y: auto; padding: 12px; }
+  #right { width: 65%; padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+  .chart-box { flex: 1; min-height: 0; background: #16213e; border-radius: 8px; padding: 12px; position: relative; }
+  .chart-box h3 { font-size: 0.9rem; color: #aaa; margin-bottom: 4px; }
+  .chart-box canvas { width: 100% !important; }
+
+  /* Table styles */
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { text-align: left; padding: 6px 8px; border-bottom: 2px solid #0f3460; color: #4ecca3; position: sticky; top: 0; background: #1a1a2e; }
+  th.num, td.num { text-align: right; }
+  .group-row { cursor: pointer; }
+  .group-row td { padding: 6px 8px; border-bottom: 1px solid #0f3460; font-weight: 600; }
+  .group-row:hover { background: #16213e; }
+  .group-row.selected { background: #0f3460; }
+  .cust-row { cursor: pointer; }
+  .cust-row td { padding: 4px 8px 4px 28px; border-bottom: 1px solid rgba(15,52,96,0.4); font-size: 0.8rem; color: #bbb; }
+  .cust-row:hover { background: #16213e; }
+  .cust-row.selected { background: #0f3460; color: #fff; }
+  .cust-row.hidden { display: none; }
+  .arrow { display: inline-block; transition: transform 0.2s; margin-right: 4px; font-size: 0.7rem; }
+  .arrow.open { transform: rotate(90deg); }
+  .pos { color: #4ecca3; }
+  .neg { color: #e74c3c; }
+  .no-data { display: flex; align-items: center; justify-content: center; height: 100%; color: #666; font-size: 0.95rem; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>Sales Dashboard</h1>
+  <div class="info" id="status">Loading data...</div>
+</div>
+
+<div id="loading">Loading invoice data from Google Sheets...</div>
+
+<div id="main" style="display:none;">
+  <div id="left">
+    <table>
+      <thead>
+        <tr>
+          <th>Customer Group</th>
+          <th class="num">2025 YTD</th>
+          <th class="num">2026 YTD</th>
+          <th class="num">+/-</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div id="right">
+    <div class="chart-box">
+      <h3 id="cuke-title">Cuke — Select a group or customer</h3>
+      <canvas id="cukeChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3 id="lettuce-title">Lettuce — Select a group or customer</h3>
+      <canvas id="lettuceChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = '124y8JdWXmbf_hb1vfimHmGaKLVXrRHybw02w_ozCExE';
+const TABS = [
+  { name: 'invoices_23-25', gid: '1254110782' },
+  { name: 'invoices_2025',  gid: '544460225'  }
+];
+
+// Current ISO week for YTD cutoff
+function currentISOWeek() {
+  const now = new Date();
+  const jan4 = new Date(now.getFullYear(), 0, 4);
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 86400000) + 1;
+  const weekNum = Math.ceil((dayOfYear + jan4.getDay() - 1) / 7);
+  return weekNum;
+}
+const MAX_WEEK = currentISOWeek();
+
+let allRows = [];
+let cukeChart, lettuceChart;
+
+// Parse gviz JSON response into array of objects
+function parseGvizTable(table) {
+  const cols = table.cols.map(c => c.label);
+  // Identify numeric columns we need as integers
+  const intCols = new Set(['Cases','Year','Month','ISOYear','ISOWeek','DOW','Grade']);
+  return table.rows.map(r => {
+    const obj = {};
+    r.c.forEach((cell, i) => {
+      const col = cols[i];
+      if (!col) return;
+      if (!cell || cell.v === null || cell.v === undefined) { obj[col] = ''; return; }
+      // Date cells: store formatted string
+      if (typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
+        obj[col] = cell.f || cell.v;
+      } else if (intCols.has(col) && typeof cell.v === 'number') {
+        obj[col] = Math.round(cell.v);
+      } else {
+        obj[col] = cell.v;
+      }
+    });
+    return obj;
+  }).filter(r => r.CustomerGroup && r.ProductCode !== 'JF');
+}
+
+// Fetch a tab via JSONP (works from file:// and avoids CORS)
+function fetchTab(gid) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_cb' + gid;
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:${cbName}&gid=${gid}`;
+    window[cbName] = function(resp) {
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      if (resp.status === 'error') { reject(resp.errors); return; }
+      resolve(parseGvizTable(resp.table));
+    };
+    const script = document.createElement('script');
+    script.src = url;
+    script.onerror = () => { delete window[cbName]; reject('Network error loading gid=' + gid); };
+    document.head.appendChild(script);
+  });
+}
+
+async function loadData() {
+  const results = await Promise.all(TABS.map(t => fetchTab(t.gid)));
+  allRows = results.flat();
+  document.getElementById('status').textContent =
+    `${allRows.length.toLocaleString()} invoices | YTD through week ${MAX_WEEK}`;
+  buildTable();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('main').style.display = 'flex';
+}
+
+// Group data for the left table (YTD cases)
+function ytdCases(rows, year) {
+  return rows
+    .filter(r => r.ISOYear === year && r.ISOWeek <= MAX_WEEK)
+    .reduce((sum, r) => sum + (Number(r.Cases) || 0), 0);
+}
+
+function buildTable() {
+  const groups = {};
+  allRows.forEach(r => {
+    const g = r.CustomerGroup || 'Unknown';
+    const c = r.CustomerName || 'Unknown';
+    if (!groups[g]) groups[g] = {};
+    if (!groups[g][c]) groups[g][c] = [];
+    groups[g][c].push(r);
+  });
+
+  // Sort groups by 2026 YTD desc
+  const sorted = Object.entries(groups).sort((a, b) => {
+    const aRows = Object.values(a[1]).flat();
+    const bRows = Object.values(b[1]).flat();
+    return ytdCases(bRows, 2026) - ytdCases(aRows, 2026);
+  });
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+
+  sorted.forEach(([groupName, customers]) => {
+    const groupRows = Object.values(customers).flat();
+    const y25 = ytdCases(groupRows, 2025);
+    const y26 = ytdCases(groupRows, 2026);
+    const diff = y26 - y25;
+
+    const tr = document.createElement('tr');
+    tr.className = 'group-row';
+    tr.dataset.group = groupName;
+    tr.innerHTML = `
+      <td><span class="arrow">&#9654;</span>${groupName}</td>
+      <td class="num">${y25.toLocaleString()}</td>
+      <td class="num">${y26.toLocaleString()}</td>
+      <td class="num ${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? '+' : ''}${diff.toLocaleString()}</td>
+    `;
+    tr.addEventListener('click', () => toggleGroup(tr, groupName));
+    tbody.appendChild(tr);
+
+    // Customer rows (hidden by default)
+    const custSorted = Object.entries(customers).sort((a, b) => ytdCases(b[1], 2026) - ytdCases(a[1], 2026));
+    custSorted.forEach(([custName, custRows]) => {
+      const c25 = ytdCases(custRows, 2025);
+      const c26 = ytdCases(custRows, 2026);
+      const cd = c26 - c25;
+      const ctr = document.createElement('tr');
+      ctr.className = 'cust-row hidden';
+      ctr.dataset.group = groupName;
+      ctr.dataset.customer = custName;
+      ctr.innerHTML = `
+        <td>${custName}</td>
+        <td class="num">${c25.toLocaleString()}</td>
+        <td class="num">${c26.toLocaleString()}</td>
+        <td class="num ${cd >= 0 ? 'pos' : 'neg'}">${cd >= 0 ? '+' : ''}${cd.toLocaleString()}</td>
+      `;
+      ctr.addEventListener('click', (e) => { e.stopPropagation(); selectCustomer(ctr, groupName, custName); });
+      tbody.appendChild(ctr);
+    });
+  });
+}
+
+function toggleGroup(tr, groupName) {
+  const arrow = tr.querySelector('.arrow');
+  const isOpen = arrow.classList.toggle('open');
+  const custRows = document.querySelectorAll(`.cust-row[data-group="${CSS.escape(groupName)}"]`);
+  custRows.forEach(r => r.classList.toggle('hidden', !isOpen));
+
+  // Select this group for charts
+  document.querySelectorAll('.group-row.selected, .cust-row.selected').forEach(r => r.classList.remove('selected'));
+  tr.classList.add('selected');
+  updateCharts(groupName, null);
+}
+
+function selectCustomer(tr, groupName, custName) {
+  document.querySelectorAll('.group-row.selected, .cust-row.selected').forEach(r => r.classList.remove('selected'));
+  tr.classList.add('selected');
+  updateCharts(groupName, custName);
+}
+
+function updateCharts(groupName, custName) {
+  const label = custName || groupName;
+  const filtered = allRows.filter(r => {
+    if (custName) return r.CustomerName === custName;
+    return r.CustomerGroup === groupName;
+  });
+
+  renderChart('cuke', filtered.filter(r => r.Farm === 'Cuke'), label);
+  renderChart('lettuce', filtered.filter(r => r.Farm === 'Lettuce'), label);
+}
+
+// Product color palette
+const PRODUCT_COLORS = {
+  OK: '#e6194b', OJ: '#3cb44b', KR: '#4363d8', KW: '#f58231', KF: '#911eb4',
+  JR: '#42d4f4', JW: '#f032e6', JF: '#bfef45', LF: '#fabed4', LR: '#469990',
+  LW: '#dcbeff', WR: '#9A6324', AR: '#800000', AF: '#aaffc3', EF: '#ffd8b1',
+  Sales: '#fffac8', KWC: '#808000'
+};
+
+function renderChart(type, rows, label) {
+  const titleEl = document.getElementById(type + '-title');
+  const canvas = document.getElementById(type + 'Chart');
+  titleEl.textContent = `${type === 'cuke' ? 'Cuke' : 'Lettuce'} — ${label}`;
+
+  // Find all products in this data
+  const products = [...new Set(rows.map(r => r.ProductCode))].sort();
+
+  // Aggregate by product + year + week
+  const data = {}; // { product: { year: { week: cases } } }
+  rows.forEach(r => {
+    const y = r.ISOYear;
+    if (y !== 2025 && y !== 2026) return;
+    const p = r.ProductCode;
+    if (!data[p]) data[p] = { 2025: {}, 2026: {} };
+    if (!data[p][y][r.ISOWeek]) data[p][y][r.ISOWeek] = 0;
+    data[p][y][r.ISOWeek] += Number(r.Cases) || 0;
+  });
+
+  // Build week labels
+  let maxW = MAX_WEEK;
+  products.forEach(p => {
+    if (!data[p]) return;
+    [2025, 2026].forEach(y => {
+      const wks = Object.keys(data[p][y]).map(Number);
+      if (wks.length) maxW = Math.max(maxW, ...wks);
+    });
+  });
+  const weeks = [];
+  for (let w = 1; w <= maxW; w++) weeks.push(w);
+
+  // Build datasets: one line per product per year (solid=2026, dashed=2025)
+  const datasets = [];
+  products.forEach(p => {
+    if (!data[p]) return;
+    const color = PRODUCT_COLORS[p] || '#999';
+    // 2026 — solid
+    const has26 = Object.keys(data[p][2026]).length > 0;
+    if (has26) {
+      datasets.push({
+        label: `${p} '26`,
+        data: weeks.map(w => data[p][2026][w] ?? null),
+        borderColor: color, backgroundColor: 'transparent',
+        tension: 0, pointRadius: 2, spanGaps: false, borderWidth: 2
+      });
+    }
+    // 2025 — dashed
+    const has25 = Object.keys(data[p][2025]).length > 0;
+    if (has25) {
+      datasets.push({
+        label: `${p} '25`,
+        data: weeks.map(w => data[p][2025][w] ?? null),
+        borderColor: color, backgroundColor: 'transparent',
+        tension: 0, pointRadius: 1, spanGaps: false, borderWidth: 1.5,
+        borderDash: [5, 3]
+      });
+    }
+  });
+
+  const chartRef = type === 'cuke' ? cukeChart : lettuceChart;
+  if (chartRef) chartRef.destroy();
+
+  const ctx = canvas.getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: weeks.map(w => 'W' + w), datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: '#ccc', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { title: { display: true, text: 'Cases', color: '#888' }, ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+      }
+    }
+  });
+
+  if (type === 'cuke') cukeChart = chart;
+  else lettuceChart = chart;
+}
+
+loadData().catch(err => {
+  document.getElementById('loading').textContent = 'Error loading data. Make sure the sheet is shared (anyone with link can view).';
+  console.error(err);
+});
+</script>
+</body>
+</html>
