@@ -70,7 +70,7 @@
           <th>Customer Group</th>
           <th class="num">2025 YTD</th>
           <th class="num">2026 YTD</th>
-          <th class="num">+/-</th>
+          <th class="num">% Chg</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -158,7 +158,7 @@ async function loadData() {
   buildTable();
   document.getElementById('loading').style.display = 'none';
   document.getElementById('main').style.display = 'flex';
-  updateCharts(null, null);
+  // Start with blank charts
 }
 
 // Group data for the left table (YTD cases)
@@ -201,7 +201,7 @@ function buildTable() {
       <td><span class="arrow">&#9654;</span>${groupName}</td>
       <td class="num">${y25.toLocaleString()}</td>
       <td class="num">${y26.toLocaleString()}</td>
-      <td class="num ${diff >= 0 ? 'pos' : 'neg'}">${diff >= 0 ? '+' : ''}${diff.toLocaleString()}</td>
+      <td class="num ${diff >= 0 ? 'pos' : 'neg'}">${y25 === 0 ? '—' : (diff >= 0 ? '+' : '') + Math.round(diff / y25 * 100) + '%'}</td>
     `;
     tr.addEventListener('click', () => toggleGroup(tr, groupName));
     tbody.appendChild(tr);
@@ -220,7 +220,7 @@ function buildTable() {
         <td>${custName}</td>
         <td class="num">${c25.toLocaleString()}</td>
         <td class="num">${c26.toLocaleString()}</td>
-        <td class="num ${cd >= 0 ? 'pos' : 'neg'}">${cd >= 0 ? '+' : ''}${cd.toLocaleString()}</td>
+        <td class="num ${cd >= 0 ? 'pos' : 'neg'}">${c25 === 0 ? '—' : (cd >= 0 ? '+' : '') + Math.round(cd / c25 * 100) + '%'}</td>
       `;
       ctr.addEventListener('click', (e) => { e.stopPropagation(); selectCustomer(ctr, groupName, custName); });
       tbody.appendChild(ctr);
@@ -232,13 +232,13 @@ function buildTable() {
   const totY26 = ytdCases(allRows, 2026);
   const totDiff = totY26 - totY25;
   const totTr = document.createElement('tr');
-  totTr.className = 'group-row selected';
+  totTr.className = 'group-row';
   totTr.style.borderTop = '2px solid #4ecca3';
   totTr.innerHTML = `
     <td style="color:#4ecca3; font-weight:700;">TOTAL</td>
     <td class="num" style="color:#4ecca3; font-weight:700;">${totY25.toLocaleString()}</td>
     <td class="num" style="color:#4ecca3; font-weight:700;">${totY26.toLocaleString()}</td>
-    <td class="num ${totDiff >= 0 ? 'pos' : 'neg'}" style="font-weight:700;">${totDiff >= 0 ? '+' : ''}${totDiff.toLocaleString()}</td>
+    <td class="num ${totDiff >= 0 ? 'pos' : 'neg'}" style="font-weight:700;">${totY25 === 0 ? '—' : (totDiff >= 0 ? '+' : '') + Math.round(totDiff / totY25 * 100) + '%'}</td>
   `;
   totTr.addEventListener('click', () => {
     document.querySelectorAll('.group-row.selected, .cust-row.selected').forEach(r => r.classList.remove('selected'));
