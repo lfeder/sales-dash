@@ -242,7 +242,7 @@ function buildTable() {
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
 
-  const EXPANDABLE_GROUPS = ['costco', 'armstrong produce', "sam's"];
+  const EXPANDABLE_GROUPS = ['costco', 'armstrong produce', "sam's", 'small'];
 
   sorted.forEach(([groupName, customers]) => {
     const isExpandable = EXPANDABLE_GROUPS.includes(groupName.toLowerCase());
