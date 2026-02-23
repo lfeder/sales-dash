@@ -279,12 +279,26 @@ function updateCharts(groupName, custName) {
 }
 
 // Product color palette
-const PRODUCT_COLORS = {
-  OK: '#e6194b', OJ: '#3cb44b', KR: '#4363d8', KW: '#f58231', KF: '#911eb4',
-  JR: '#42d4f4', JW: '#f032e6', JF: '#bfef45', LF: '#fabed4', LR: '#469990',
-  LW: '#dcbeff', WR: '#9A6324', AR: '#800000', AF: '#aaffc3', EF: '#ffd8b1',
-  Sales: '#fffac8', KWC: '#808000'
-};
+// Bright, distinct palette — reused across Cuke and Lettuce charts
+const BRIGHT_PALETTE = [
+  '#ff0000', // red
+  '#00cc00', // green
+  '#0066ff', // blue
+  '#ff9900', // orange
+  '#cc00ff', // purple
+  '#00cccc', // cyan
+  '#ff3399', // pink
+  '#ffcc00', // yellow
+  '#00ff66', // lime
+  '#ff6600', // dark orange
+];
+
+// Assign colors per-chart so each farm gets the full bright palette
+function assignColors(products) {
+  const map = {};
+  products.forEach((p, i) => { map[p] = BRIGHT_PALETTE[i % BRIGHT_PALETTE.length]; });
+  return map;
+}
 
 // Convert hex color to rgba with alpha
 function hexToRgba(hex, alpha) {
@@ -325,11 +339,12 @@ function renderChart(type, rows, label) {
   const weeks = [];
   for (let w = 1; w <= maxW; w++) weeks.push(w);
 
-  // Build datasets: 2026 = solid full color, 2025 = solid faded color (hidden from legend)
+  // Build datasets: 2026 = solid full color, 2025 = solid faded color
+  const activeProducts = products.filter(p => data[p]);
+  const colorMap = assignColors(activeProducts);
   const datasets = [];
-  products.forEach(p => {
-    if (!data[p]) return;
-    const color = PRODUCT_COLORS[p] || '#999';
+  activeProducts.forEach(p => {
+    const color = colorMap[p];
     const fadedColor = hexToRgba(color, 0.3);
     // 2026 — solid, full color
     const has26 = Object.keys(data[p][2026]).length > 0;
