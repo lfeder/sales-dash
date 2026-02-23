@@ -129,7 +129,7 @@ function parseGvizTable(table) {
       }
     });
     return obj;
-  }).filter(r => r.CustomerGroup && r.ProductCode !== 'JF');
+  }).filter(r => r.CustomerGroup && r.ProductCode !== 'JF' && r.ProductCode !== 'Sales');
 }
 
 // Fetch a tab via JSONP (works from file:// and avoids CORS)
