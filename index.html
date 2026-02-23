@@ -229,8 +229,11 @@ function buildTable() {
     groups[g][c].push(r);
   });
 
-  // Sort groups by 2026 YTD desc
+  // Sort groups by 2026 YTD desc, but pin "Small" to the bottom
   const sorted = Object.entries(groups).sort((a, b) => {
+    const aSmall = a[0].toLowerCase() === 'small' ? 1 : 0;
+    const bSmall = b[0].toLowerCase() === 'small' ? 1 : 0;
+    if (aSmall !== bSmall) return aSmall - bSmall;
     const aRows = Object.values(a[1]).flat();
     const bRows = Object.values(b[1]).flat();
     return ytdCases(bRows, 2026) - ytdCases(aRows, 2026);
