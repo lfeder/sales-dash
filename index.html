@@ -374,7 +374,19 @@ function renderChart(type, rows, label) {
             font: { size: 11 },
             filter: () => true,
             usePointStyle: true,
-            pointStyle: 'circle'
+            pointStyle: 'circle',
+            generateLabels: chart => {
+              const original = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+              return original.map(label => {
+                if (label.hidden) {
+                  label.fontColor = 'rgba(204,204,204,0.25)';
+                  label.fillStyle = 'rgba(128,128,128,0.25)';
+                  label.strokeStyle = 'rgba(128,128,128,0.25)';
+                }
+                label.textDecoration = undefined;
+                return label;
+              });
+            }
           }
         },
         tooltip: {
