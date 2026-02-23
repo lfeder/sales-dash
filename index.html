@@ -277,6 +277,7 @@ function buildTable() {
       custSorted.forEach(([custName, custRows]) => {
         const c25 = ytdCases(custRows, 2025);
         const c26 = ytdCases(custRows, 2026);
+        if (groupName.toLowerCase() === 'small' && c25 + c26 === 0) return;
         const cd = c26 - c25;
         const cc25 = ytdCasesByFarm(custRows, 2025, 'Cuke');
         const cc26 = ytdCasesByFarm(custRows, 2026, 'Cuke');
