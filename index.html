@@ -393,15 +393,25 @@ function renderChart(type, rows, label) {
             generateLabels: chart => {
               const original = Chart.defaults.plugins.legend.labels.generateLabels(chart);
               return original.map(label => {
-                if (label.hidden) {
+                const ds = chart.data.datasets[label.datasetIndex];
+                const isHidden = !chart.isDatasetVisible(label.datasetIndex);
+                if (isHidden) {
                   label.fontColor = 'rgba(204,204,204,0.25)';
                   label.fillStyle = 'rgba(128,128,128,0.25)';
                   label.strokeStyle = 'rgba(128,128,128,0.25)';
                 }
-                label.textDecoration = undefined;
+                label.lineDash = [];
+                label.lineWidth = 0;
+                label.hidden = false;
                 return label;
               });
             }
+          },
+          onClick: (e, legendItem, legend) => {
+            const ci = legend.chart;
+            const index = legendItem.datasetIndex;
+            ci.setDatasetVisibility(index, !ci.isDatasetVisible(index));
+            ci.update();
           }
         },
         tooltip: {
