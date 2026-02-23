@@ -354,7 +354,7 @@ function renderChart(type, rows, label) {
         year: 2026,
         data: weeks.map(w => data[p][2026][w] ?? null),
         borderColor: color, backgroundColor: color,
-        tension: 0, pointRadius: 2, spanGaps: false, borderWidth: 2
+        tension: 0, pointRadius: 0, spanGaps: false, borderWidth: 2
       });
     }
     // 2025 — solid, faded color, hidden from legend
@@ -365,7 +365,7 @@ function renderChart(type, rows, label) {
         year: 2025,
         data: weeks.map(w => data[p][2025][w] ?? null),
         borderColor: fadedColor, backgroundColor: fadedColor,
-        tension: 0, pointRadius: 1, spanGaps: false, borderWidth: 1.5,
+        tension: 0, pointRadius: 0, spanGaps: false, borderWidth: 1.5,
         hidden: false
       });
     }
