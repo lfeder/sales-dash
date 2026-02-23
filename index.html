@@ -372,15 +372,18 @@ function renderChart(type, rows, label) {
           labels: {
             color: '#ccc',
             font: { size: 11 },
-            filter: () => true
+            filter: () => true,
+            usePointStyle: true,
+            pointStyle: 'circle'
           }
         },
         tooltip: {
+          usePointStyle: true,
           callbacks: {
             label: ctx => {
               const ds = ctx.dataset;
               const name = ds.label.replace(/ '\d+$/, '');
-              return `${name} '${ds.year % 100}: ${ctx.formattedValue}`;
+              return ` ${name} '${ds.year % 100}: ${ctx.formattedValue}`;
             }
           }
         }
