@@ -335,7 +335,7 @@ function renderChart(type, rows, label) {
     const has26 = Object.keys(data[p][2026]).length > 0;
     if (has26) {
       datasets.push({
-        label: p,
+        label: `${p} '26`,
         year: 2026,
         data: weeks.map(w => data[p][2026][w] ?? null),
         borderColor: color, backgroundColor: color,
