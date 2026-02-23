@@ -57,7 +57,10 @@
 
 <div id="header">
   <h1>Sales Dashboard</h1>
-  <div class="info" id="status">Loading data...</div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button id="toggle25" onclick="toggle25Lines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Hide '25</button>
+    <div class="info" id="status">Loading data...</div>
+  </div>
 </div>
 
 <div id="loading">Loading invoice data from Google Sheets...</div>
@@ -107,6 +110,20 @@ const MAX_WEEK = currentISOWeek();
 
 let allRows = [];
 let cukeChart, lettuceChart;
+let show25 = true;
+
+function toggle25Lines() {
+  show25 = !show25;
+  const btn = document.getElementById('toggle25');
+  btn.textContent = show25 ? "Hide '25" : "Show '25";
+  [cukeChart, lettuceChart].forEach(chart => {
+    if (!chart) return;
+    chart.data.datasets.forEach((ds, i) => {
+      if (ds.year === 2025) chart.setDatasetVisibility(i, show25);
+    });
+    chart.update();
+  });
+}
 
 // Parse gviz JSON response into array of objects
 function parseGvizTable(table) {
@@ -158,6 +175,7 @@ async function loadData() {
   buildTable();
   document.getElementById('loading').style.display = 'none';
   document.getElementById('main').style.display = 'flex';
+  document.getElementById('toggle25').style.display = 'inline-block';
   // Start with blank charts
 }
 
