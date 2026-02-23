@@ -58,7 +58,7 @@
 <div id="header">
   <h1>Sales Dashboard</h1>
   <div style="display:flex;align-items:center;gap:12px;">
-    <button id="toggle25" onclick="toggle25Lines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #4ecca3;border-radius:4px;cursor:pointer;">Hide '25</button>
+    <button id="toggle25" onclick="toggle25Lines()" style="display:none;padding:4px 10px;font-size:0.75rem;background:#0f3460;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;">Show '25</button>
     <div class="info" id="status">Loading data...</div>
   </div>
 </div>
@@ -110,12 +110,13 @@ const MAX_WEEK = currentISOWeek();
 
 let allRows = [];
 let cukeChart, lettuceChart;
-let show25 = true;
+let show25 = false;
 
 function toggle25Lines() {
   show25 = !show25;
   const btn = document.getElementById('toggle25');
   btn.textContent = show25 ? "Hide '25" : "Show '25";
+  btn.style.borderColor = show25 ? '#4ecca3' : '#555';
   [cukeChart, lettuceChart].forEach(chart => {
     if (!chart) return;
     chart.data.datasets.forEach((ds, i) => {
@@ -384,7 +385,7 @@ function renderChart(type, rows, label) {
         data: weeks.map(w => data[p][2025][w] ?? null),
         borderColor: fadedColor, backgroundColor: fadedColor,
         tension: 0, pointRadius: 0, spanGaps: false, borderWidth: 1.5,
-        hidden: false
+        hidden: !show25
       });
     }
   });
