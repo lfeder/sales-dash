@@ -346,7 +346,7 @@ function renderChart(type, rows, label) {
     const has25 = Object.keys(data[p][2025]).length > 0;
     if (has25) {
       datasets.push({
-        label: `${p} (PY)`,
+        label: `${p} '25`,
         year: 2025,
         data: weeks.map(w => data[p][2025][w] ?? null),
         borderColor: fadedColor, backgroundColor: 'transparent',
@@ -379,7 +379,7 @@ function renderChart(type, rows, label) {
           callbacks: {
             label: ctx => {
               const ds = ctx.dataset;
-              const name = ds.label.replace(' (PY)', '');
+              const name = ds.label.replace(/ '\d+$/, '');
               return `${name} '${ds.year % 100}: ${ctx.formattedValue}`;
             }
           }
