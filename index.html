@@ -150,7 +150,7 @@ function parseGvizTable(table) {
       }
     });
     return obj;
-  }).filter(r => r.CustomerGroup && r.ProductCode !== 'JF' && r.ProductCode !== 'Sales');
+  }).filter(r => r.CustomerGroup && r.ProductCode !== 'JF' && r.ProductCode !== 'Sales' && r.CustomerName !== 'Kaukau');
 }
 
 // Fetch a tab via JSONP (works from file:// and avoids CORS)
@@ -242,44 +242,50 @@ function buildTable() {
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
 
+  const EXPANDABLE_GROUPS = ['costco', 'armstrong produce', "sam's"];
+
   sorted.forEach(([groupName, customers]) => {
+    const isExpandable = EXPANDABLE_GROUPS.includes(groupName.toLowerCase());
     const groupRows = Object.values(customers).flat();
-    const y25 = ytdCases(groupRows, 2025);
-    const y26 = ytdCases(groupRows, 2026);
-    const diff = y26 - y25;
-    const cuke25 = ytdCasesByFarm(groupRows, 2025, 'Cuke');
-    const cuke26 = ytdCasesByFarm(groupRows, 2026, 'Cuke');
-    const lett25 = ytdCasesByFarm(groupRows, 2025, 'Lettuce');
-    const lett26 = ytdCasesByFarm(groupRows, 2026, 'Lettuce');
 
-    const tr = document.createElement('tr');
-    tr.className = 'group-row';
-    tr.dataset.group = groupName;
-    tr.innerHTML = `
-      <td><span class="arrow">&#9654;</span>${groupName}</td>
-      <td class="num">${y25.toLocaleString()}</td>
-      <td class="num">${y26.toLocaleString()}</td>
-      <td class="num ${diff >= 0 ? 'pos' : 'neg'}">${fmtPct(y26, y25)}</td>
-      <td class="num ${cuke26 - cuke25 >= 0 ? 'pos' : 'neg'}">${fmtPct(cuke26, cuke25)}</td>
-      <td class="num ${lett26 - lett25 >= 0 ? 'pos' : 'neg'}">${fmtPct(lett26, lett25)}</td>
-    `;
-    tr.addEventListener('click', () => toggleGroup(tr, groupName));
-    tbody.appendChild(tr);
+    if (isExpandable) {
+      // Show group header with expandable children
+      const y25 = ytdCases(groupRows, 2025);
+      const y26 = ytdCases(groupRows, 2026);
+      const diff = y26 - y25;
+      const cuke25 = ytdCasesByFarm(groupRows, 2025, 'Cuke');
+      const cuke26 = ytdCasesByFarm(groupRows, 2026, 'Cuke');
+      const lett25 = ytdCasesByFarm(groupRows, 2025, 'Lettuce');
+      const lett26 = ytdCasesByFarm(groupRows, 2026, 'Lettuce');
 
-    // Customer rows (hidden by default)
-    const custSorted = Object.entries(customers).sort((a, b) => ytdCases(b[1], 2026) - ytdCases(a[1], 2026));
-    custSorted.forEach(([custName, custRows]) => {
-      const c25 = ytdCases(custRows, 2025);
-      const c26 = ytdCases(custRows, 2026);
-      const cd = c26 - c25;
-      const cc25 = ytdCasesByFarm(custRows, 2025, 'Cuke');
-      const cc26 = ytdCasesByFarm(custRows, 2026, 'Cuke');
-      const cl25 = ytdCasesByFarm(custRows, 2025, 'Lettuce');
-      const cl26 = ytdCasesByFarm(custRows, 2026, 'Lettuce');
-      const ctr = document.createElement('tr');
-      ctr.className = 'cust-row hidden';
-      ctr.dataset.group = groupName;
-      ctr.dataset.customer = custName;
+      const tr = document.createElement('tr');
+      tr.className = 'group-row';
+      tr.dataset.group = groupName;
+      tr.innerHTML = `
+        <td><span class="arrow">&#9654;</span>${groupName}</td>
+        <td class="num">${y25.toLocaleString()}</td>
+        <td class="num">${y26.toLocaleString()}</td>
+        <td class="num ${diff >= 0 ? 'pos' : 'neg'}">${fmtPct(y26, y25)}</td>
+        <td class="num ${cuke26 - cuke25 >= 0 ? 'pos' : 'neg'}">${fmtPct(cuke26, cuke25)}</td>
+        <td class="num ${lett26 - lett25 >= 0 ? 'pos' : 'neg'}">${fmtPct(lett26, lett25)}</td>
+      `;
+      tr.addEventListener('click', () => toggleGroup(tr, groupName));
+      tbody.appendChild(tr);
+
+      // Customer rows (hidden by default)
+      const custSorted = Object.entries(customers).sort((a, b) => ytdCases(b[1], 2026) - ytdCases(a[1], 2026));
+      custSorted.forEach(([custName, custRows]) => {
+        const c25 = ytdCases(custRows, 2025);
+        const c26 = ytdCases(custRows, 2026);
+        const cd = c26 - c25;
+        const cc25 = ytdCasesByFarm(custRows, 2025, 'Cuke');
+        const cc26 = ytdCasesByFarm(custRows, 2026, 'Cuke');
+        const cl25 = ytdCasesByFarm(custRows, 2025, 'Lettuce');
+        const cl26 = ytdCasesByFarm(custRows, 2026, 'Lettuce');
+        const ctr = document.createElement('tr');
+        ctr.className = 'cust-row hidden';
+        ctr.dataset.group = groupName;
+        ctr.dataset.customer = custName;
       ctr.innerHTML = `
         <td>${custName}</td>
         <td class="num">${c25.toLocaleString()}</td>
@@ -290,7 +296,38 @@ function buildTable() {
       `;
       ctr.addEventListener('click', (e) => { e.stopPropagation(); selectCustomer(ctr, groupName, custName); });
       tbody.appendChild(ctr);
-    });
+      });
+    } else {
+      // Non-expandable: show each customer as a top-level row
+      const custSorted = Object.entries(customers).sort((a, b) => ytdCases(b[1], 2026) - ytdCases(a[1], 2026));
+      custSorted.forEach(([custName, custRows]) => {
+        const c25 = ytdCases(custRows, 2025);
+        const c26 = ytdCases(custRows, 2026);
+        const cd = c26 - c25;
+        const cc25 = ytdCasesByFarm(custRows, 2025, 'Cuke');
+        const cc26 = ytdCasesByFarm(custRows, 2026, 'Cuke');
+        const cl25 = ytdCasesByFarm(custRows, 2025, 'Lettuce');
+        const cl26 = ytdCasesByFarm(custRows, 2026, 'Lettuce');
+        const tr = document.createElement('tr');
+        tr.className = 'group-row';
+        tr.dataset.group = groupName;
+        tr.dataset.customer = custName;
+        tr.innerHTML = `
+          <td>${custName}</td>
+          <td class="num">${c25.toLocaleString()}</td>
+          <td class="num">${c26.toLocaleString()}</td>
+          <td class="num ${cd >= 0 ? 'pos' : 'neg'}">${fmtPct(c26, c25)}</td>
+          <td class="num ${cc26 - cc25 >= 0 ? 'pos' : 'neg'}">${fmtPct(cc26, cc25)}</td>
+          <td class="num ${cl26 - cl25 >= 0 ? 'pos' : 'neg'}">${fmtPct(cl26, cl25)}</td>
+        `;
+        tr.addEventListener('click', () => {
+          document.querySelectorAll('.group-row.selected, .cust-row.selected').forEach(r => r.classList.remove('selected'));
+          tr.classList.add('selected');
+          updateCharts(groupName, custName);
+        });
+        tbody.appendChild(tr);
+      });
+    }
   });
 
   // Total row at bottom
