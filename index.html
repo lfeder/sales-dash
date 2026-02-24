@@ -109,7 +109,7 @@ function currentISOWeek() {
   const weekNum = Math.ceil((dayOfYear + jan4.getDay() - 1) / 7);
   return weekNum;
 }
-const MAX_WEEK = currentISOWeek();
+const MAX_WEEK = currentISOWeek() - 1; // exclude current partial week
 
 let allRows = [];
 let cukeChart, lettuceChart;
@@ -431,6 +431,7 @@ function renderChart(type, rows, label) {
   rows.forEach(r => {
     const y = r.ISOYear;
     if (y !== 2025 && y !== 2026) return;
+    if (r.ISOWeek > MAX_WEEK) return;
     const p = r.ProductCode;
     if (!data[p]) data[p] = { 2025: {}, 2026: {} };
     if (!data[p][y][r.ISOWeek]) data[p][y][r.ISOWeek] = 0;
@@ -438,14 +439,7 @@ function renderChart(type, rows, label) {
   });
 
   // Build week labels
-  let maxW = MAX_WEEK;
-  products.forEach(p => {
-    if (!data[p]) return;
-    [2025, 2026].forEach(y => {
-      const wks = Object.keys(data[p][y]).map(Number);
-      if (wks.length) maxW = Math.max(maxW, ...wks);
-    });
-  });
+  const maxW = MAX_WEEK;
   const weeks = [];
   for (let w = 1; w <= maxW; w++) weeks.push(w);
 
