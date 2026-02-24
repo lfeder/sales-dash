@@ -431,15 +431,20 @@ function renderChart(type, rows, label) {
   rows.forEach(r => {
     const y = r.ISOYear;
     if (y !== 2025 && y !== 2026) return;
-    if (r.ISOWeek > MAX_WEEK) return;
+    if (y === 2026 && r.ISOWeek > MAX_WEEK) return;
     const p = r.ProductCode;
     if (!data[p]) data[p] = { 2025: {}, 2026: {} };
     if (!data[p][y][r.ISOWeek]) data[p][y][r.ISOWeek] = 0;
     data[p][y][r.ISOWeek] += Number(r.Cases) || 0;
   });
 
-  // Build week labels
-  const maxW = MAX_WEEK;
+  // Build week labels — show all 2025 weeks, cap 2026 at MAX_WEEK
+  let maxW = MAX_WEEK;
+  products.forEach(p => {
+    if (!data[p]) return;
+    const wks = Object.keys(data[p][2025]).map(Number);
+    if (wks.length) maxW = Math.max(maxW, ...wks);
+  });
   const weeks = [];
   for (let w = 1; w <= maxW; w++) weeks.push(w);
 
