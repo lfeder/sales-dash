@@ -109,7 +109,17 @@ function currentISOWeek() {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
-const MAX_WEEK = currentISOWeek() - 1; // exclude current partial week
+// Include current week only after noon HST on Friday; otherwise use prior week
+function maxWeek() {
+  const now = new Date();
+  // HST is UTC-10
+  const hst = new Date(now.getTime() - 10 * 60 * 60 * 1000);
+  const day = hst.getUTCDay(); // 0=Sun, 5=Fri, 6=Sat
+  const hour = hst.getUTCHours();
+  const includeCurrentWeek = (day === 5 && hour >= 12) || day === 6 || day === 0;
+  return includeCurrentWeek ? currentISOWeek() : currentISOWeek() - 1;
+}
+const MAX_WEEK = maxWeek();
 
 let allRows = [];
 let cukeChart, lettuceChart;
